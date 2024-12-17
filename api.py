@@ -46,7 +46,8 @@ def update_user(user_id):
 # Route DELETE: Xóa người dùng
 @app.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
-    global data
+    print(data)
+    # global data
     data = [user for user in data if user['id'] != user_id]
     return jsonify({"message": "User deleted successfully"}), 200
 
