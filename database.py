@@ -1,38 +1,82 @@
-import mysql.connector
-from mysql.connector import Error
-
 try:
-    # Kết nối đến MySQL
-    connection = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="123456Tt",
-        database="ten_csd"
-    )
 
-    if connection.is_connected():
-        print("Kết nối thành công!")
+    from flask import Config, Flask, jsonify, request
+    from flask_sqlalchemy import SQLAlchemy
 
-     # Tạo con trỏ để thao tác với CSDL
-    cursor = connection.cursor()
+    # Khởi tạo Flask app
+    app = Flask(__name__)
+    app.config.from_object(Config)
 
-    # Thực hiện lệnh SQL
-    sql_code = '''
-        SELECT *
-        FROM shop;
-    '''
-    cursor.execute(sql_code)
 
-    # Lấy kết quả truy vấn
-    rows = cursor.fetchall()
-    for row in rows:
-        print(row)
+    # Cấu hình kết nối DB mysql
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:123456Tt@localhost/ten_csd'  
+    app.config['SQLALCHEMY_TRACK_MODIFICATION'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        "pool_size": 10,        # Số lượng kết nối tối đa
+        "pool_recycle": 280,    # Tái sử dụng kết nối sau 280s
+        "pool_timeout": 30      # Thời gian chờ trước khi timeout
+    }
+    # Khởi tạo SQLAlchemy
+    db = SQLAlchemy(app)
 
-except Error as e:
-    print(f"Lỗi khi kết nối đến MySQL: {e}")
-    
-finally:
-    # Đảm bảo đóng kết nối
-    if 'connection' in locals() and connection.is_connected():
-        connection.close()
-        print("Kết nối đã được đóng.")
+    # Định nghĩa mô hình cơ sở dữ liệu
+    class User(db.Model):
+        id = db.Column(db.Integer, primary_key=True)
+        name = db.Column(db.String(100), nullable=False)
+        age = db.Column(db.Integer, nullable=False)
+
+    # Khởi tạo cơ sở dữ liệu
+    @app.before_request
+    def create_tables():
+        db.create_all()
+
+    # Route GET: lấy danh sách người dùng
+    @app.route('/users', methods=['GET'])
+    def get_users():
+        users = User.query.all() # Lất tất cả người dùng
+        return jsonify([{'id': user.id, 'name': user.name, 'age': user.age} for user in users])
+
+    # Lấy thông tin người dùng theo ID
+    @app.route('/users/<int:user_id>', methods=['GET'])
+    def get_user(user_id):
+        user = User.query.get(user_id) # Lấy người dùng theo ID
+
+        # db = next(get_db())
+        # user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            return jsonify({'id': user.id, 'name': user.name, 'age': user.age})
+        return jsonify({"error": "User not found"}), 404
+
+    # Route POST: Thêm người dùng mới
+    @app.route('/users', methods=['POST'])
+    def create_user():
+        data = request.get_json()
+        new_user = User(name=data['name'], age=data['age'])
+        db.session.add(new_user)    # Thêm vào database
+        db.session.commit()         # Lưu thay đổi
+        return jsonify({"message": "User added successfully"}), 201
+
+    # Route DELETE: Xóa người dùng theo ID
+    @app.route('/users/<int:user_id>', methods=['DELETE'])
+    def delete_user(user_id):
+        user = User.query.get(user_id)  # Lấy người dùng theo ID
+        if user:
+            db.session.delete(user)  # Xóa người dùng
+            db.session.commit()  # Lưu thay đổi
+            return jsonify({"message": f"User with ID {user_id} deleted successfully"}), 200
+        else:
+            return jsonify({"error": "User not found"}), 404
+        
+    # Hook: Đảm bảo đóng kết nối sau khi xử lý xong
+    # @app.teardown_appcontext
+    # def shutdown_session(exception=None):
+    #     db.session.remove()
+
+    # Chạy ứng dụng Flask
+    if __name__ == '__main__':
+        app.run(debug=True)
+
+except ImportError as e:
+    print(f"ImportError: {e}")
+except Exception as e:
+    print(f"Đã xảy ra lỗi không mong muốn: {e}")
