@@ -1,5 +1,5 @@
 try:
-
+    import uuid
     from flask import Config, Flask, jsonify, request
     from flask_sqlalchemy import SQLAlchemy
 
@@ -18,13 +18,24 @@ try:
     }
     # Khởi tạo SQLAlchemy
     db = SQLAlchemy(app)
-
+    
     # Định nghĩa mô hình cơ sở dữ liệu
     class User(db.Model):
-        id = db.Column(db.Integer, primary_key=True)
+        id = db.Column(db.String(36), primary_key=True)
+                      # default=lambda: str(uuid.uuid4())) # UUID random
         name = db.Column(db.String(100), nullable=False)
         age = db.Column(db.Integer, nullable=False)
-
+        def __init__(self, **kwargs):
+            self.id = str(uuid.uuid4())     # UUID random
+            super(User, self).__init__(**kwargs)
+        def to_json(self):
+            rv = {
+                "id": self.id,
+                "name": self.name,
+                "age": self.age                             
+            }
+            return rv
+        
     # Khởi tạo cơ sở dữ liệu
     @app.before_request
     def create_tables():
@@ -34,30 +45,35 @@ try:
     @app.route('/users', methods=['GET'])
     def get_users():
         users = User.query.all() # Lất tất cả người dùng
-        return jsonify([{'id': user.id, 'name': user.name, 'age': user.age} for user in users])
+        # users = db.session.query(User).all()
+        return jsonify([user.to_json() for user in users])
 
     # Lấy thông tin người dùng theo ID
-    @app.route('/users/<int:user_id>', methods=['GET'])
+    @app.route('/users/<string:user_id>', methods=['GET'])
     def get_user(user_id):
-        user = User.query.get(user_id) # Lấy người dùng theo ID
-
+        print("in ",user_id)
+        # user = User.query.get(user_id) # Lấy người dùng theo ID
+        user = db.session.query(User).filter_by(id=user_id).first() # sử dụng session
+       
         # db = next(get_db())
-        # user = db.query(User).filter(User.id == user_id).first()
+        # user = db.query(User).filter(User.id == user.id).first()
         if user:
-            return jsonify({'id': user.id, 'name': user.name, 'age': user.age})
+            return jsonify(user.to_json())
         return jsonify({"error": "User not found"}), 404
 
     # Route POST: Thêm người dùng mới
     @app.route('/users', methods=['POST'])
     def create_user():
         data = request.get_json()
-        new_user = User(name=data['name'], age=data['age'])
+        new_user = User(name= data['name'], age= data['age'])
+        
         db.session.add(new_user)    # Thêm vào database
         db.session.commit()         # Lưu thay đổi
-        return jsonify({"message": "User added successfully"}), 201
+        return jsonify({"message": "User added successfully", 
+                        "user": new_user.to_json()}), 201
 
     # Route DELETE: Xóa người dùng theo ID
-    @app.route('/users/<int:user_id>', methods=['DELETE'])
+    @app.route('/users/<string:user_id>', methods=['DELETE'])
     def delete_user(user_id):
         user = User.query.get(user_id)  # Lấy người dùng theo ID
         if user:
