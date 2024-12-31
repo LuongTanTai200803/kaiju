@@ -2,10 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+db_config.py
 
-# Distribution / packaging
-test.py/
-text.txt
 MySQL_Local.session.sql
 
 # ENviroments
