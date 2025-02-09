@@ -17,7 +17,11 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_CONFIG["SQLALCHEMY_DATABASE_URI"]    # type: ignore
 app.config['SQLALCHEMY_TRACK_MODIFICATION'] = DB_CONFIG["SQLALCHEMY_TRACK_MODIFICATION"]
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = DB_CONFIG["SQLALCHEMY_ENGINE_OPTIONS"]
-app.config["UPLOAD_FOLDER"] = os.path.expanduser("~/Picture")  # Sử dụng thư mục mặc định của hệ thống
+
+app.config['UPLOAD_FOLDER'] = os.path.expanduser("~/Picture")  # Sử dụng thư mục mặc định của hệ thống
+app.config['HUGGINGFACE_API_KEY'] = DB_CONFIG["HUGGINGFACE_API_KEY"]
+app.config['HUGGINGFACE_API_URL'] = DB_CONFIG["HUGGINGFACE_API_URL"]
+
 
 # Khởi tạo SQLAlchemy
 db = SQLAlchemy(app)
@@ -120,8 +124,6 @@ def create_user():
 if not os.path.exists(app.config["UPLOAD_FOLDER"]):
     os.makedirs(app.config["UPLOAD_FOLDER"])
 
-HUGGINGFACE_API_KEY = "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"
-HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
 
 @app.route('/upload', methods=["POST"])
 def create_video():
